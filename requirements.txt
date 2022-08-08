@@ -13,3 +13,4 @@ sympy
 jitcdde
 dpath
 mne
+nibabel
