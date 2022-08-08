@@ -2,7 +2,7 @@ import numpy as np
 import mne
 import neurolib.models.eeg.loadDefaultParams as dp
 from neurolib.utils.collections import dotdict
-from neurolib.models.eeg.eeg_util import downsample_leadfield_matrix, get_labels_of_points
+from neurolib.models.eeg.eeg_utils import downsample_leadfield_matrix, get_labels_of_points
 import os
 import logging
 
