@@ -3,6 +3,7 @@ import xarray as xr
 import numpy as np
 
 from ..models import bold
+from ..models import eeg
 
 from ..utils.collections import dotdict
 
@@ -48,6 +49,7 @@ class Model:
         self.initializeRun()
 
         self.boldInitialized = False
+        self.eegInitialized = False
 
         logging.info(f"{self.name}: Model initialized.")
 
@@ -106,6 +108,58 @@ class Model:
         else:
             logging.warn("BOLD model not initialized, not simulating BOLD. Use `run(bold=True)`")
 
+    def initializeEEG(self):
+        """Initialize EEG model."""
+        self.eegInitialized = False
+
+        # function to transform model state before passing it to the eeg model
+        if not hasattr(self, "eegInputTransform"):
+            self.eegInputTransform = None
+
+        self.eegModel = eeg.EEGModel(self.params)
+        self.eegInitialized = True
+
+    def simulateEEG(self, t, variables, append=False):
+        """Gets the default output of the model and simulates the EEG model.
+        Adds the simulated EEG signal to outputs.
+        """
+        if self.eegInitialized:
+            # first we loop through all state variables
+            for svn, sv in zip(self.state_vars, variables):
+                # the default output is used as the input for the bold model
+                if svn == self.default_output:
+                    eeg_input = sv[:, self.startindt:]
+                    # TODO: ask about what the following in bold simulate means
+                    # logging.debug(f"BOLD input `{svn}` of shape {bold_input.shape}")
+                    #if bold_input.shape[1] >= self.boldModel.samplingRate_NDt:
+                         #if not bold_input.shape[1] % self.boldModel.samplingRate_NDt == 0:
+                        #    append = False
+                        #    logging.warn(
+                        #        f"Output size {bold_input.shape[1]} is not a multiple of BOLD sampling length {self.boldModel.samplingRate_NDt}, will not append data.")
+                        #logging.debug(f"Simulating BOLD: boldModel.run(append={append})")
+
+                    # only if the length of the output has a zero mod to the sampling rate,
+                    # the downsampled output from the boldModel can correctly appended to previous data
+                    # so: we are lazy here and simply disable appending in that case ...
+
+                    # transform eeg input according to self.eegInputTransform
+                    if self.eegInputTransform:
+                        eeg_input = self.eegInputTransform(eeg_input)
+
+                    # simulate eeg model
+                    self.eegModel.run(eeg_input, append=append)
+
+                    t_EEG = self.eegModel.t_EEG
+                    EEG = self.eegModel.EEG
+                    self.setOutput("EEG.t_EEG", t_EEG)
+                    self.setOutput("EEG.EEG", EEG)
+
+                    # else:
+                    #     logging.warn(f"Will not simulate BOLD if output{bold_input.shape[1] * self.params['dt']} not at least of duration {self.boldModel.samplingRate_NDt * self.params['dt']}")
+
+        else:
+            logging.warn("EEG model not initialized, not simulating BOLD. Use `run(eeg=True)`")
+
     def checkChunkwise(self, chunksize):
         """Checks if the model fulfills requirements for chunkwise simulation.
         Checks whether the sampling rate for outputs fits to chunksize and duration.
@@ -157,11 +211,13 @@ class Model:
         else:
             raise ValueError(f"Can't handle `sampling_dt`={self.params.get('sampling_dt')}")
 
-    def initializeRun(self, initializeBold=False):
+    def initializeRun(self, initializeBold=False, initializeEEG=False):
         """Initialization before each run.
 
         :param initializeBold: initialize BOLD model
         :type initializeBold: bool
+        :param initializeEEG: initialize EEG model
+        :type initializeEEG: bool
         """
         # get the maxDelay of the system
         self.maxDelay = self.getMaxDelay()
@@ -179,12 +235,20 @@ class Model:
         if initializeBold and not self.boldInitialized:
             self.initializeBold()
 
+        # force eeg if params['eeg'] == True
+        if self.params.get("eeg"):
+            initializeEEG = True
+        # set up the eeg model, if it didn't happen yet
+        if initializeEEG and not self.eegInitialized:
+            self.initializeEEG()
+
     def run(
         self,
         inputs=None,
         chunkwise=False,
         chunksize=None,
         bold=False,
+        eeg=False,
         append=False,
         append_outputs=None,
         continue_run=False,
@@ -205,6 +269,8 @@ class Model:
         :type chunksize: int, optional
         :param bold: simulate BOLD signal (only for chunkwise integration), defaults to False
         :type bold: bool, optional
+        :param eeg: simulate EEG signal, defaults to False
+        :type eeg: bool, optional
         :param append: append the chunkwise outputs to the outputs attribute, defaults to False, defaults to False
         :type append: bool, optional
         :param continue_run: continue a simulation by using the initial values from a previous simulation
@@ -218,7 +284,7 @@ class Model:
         if continue_run is False:
             self.clearModelState()
 
-        self.initializeRun(initializeBold=bold)
+        self.initializeRun(initializeBold=bold, initializeEEG=eeg)
 
         # enable chunkwise if chunksize is set
         chunkwise = chunkwise if chunksize is None else True
@@ -238,7 +304,11 @@ class Model:
             if bold and not self.boldInitialized:
                 logging.warn(f"{self.name}: BOLD model not initialized, not simulating BOLD. Use `run(bold=True)`")
                 bold = False
-            self.integrateChunkwise(chunksize=chunksize, bold=bold, append_outputs=append)
+            if eeg and not self.eegInitialized:
+                logging.warn(f"{self.name}: EEG model not initialized, not simulating EEG. Use `run(eeg=True)`")
+                eeg = False
+            self.integrateChunkwise(chunksize=chunksize, bold=bold,
+                                    eeg=eeg, append_outputs=append)
 
         # check if there was a problem with the simulated data
         self.checkOutputs()
@@ -257,11 +327,17 @@ class Model:
             if np.isnan(self.outputs.BOLD.BOLD).any():
                 logging.error("nan in BOLD output!")
 
-    def integrate(self, append_outputs=False, simulate_bold=False):
+        # check nans in EEG
+        if "EEG" in self.outputs:
+            if np.isnan(self.outputs.EEG.EEG).any():
+                logging.error("nan in EEG output!")
+
+    def integrate(self, append_outputs=False, simulate_bold=False,
+                  simulate_eeg=False):
         """Calls each models `integration` function and saves the state and the outputs of the model.
 
-        :param append: append the chunkwise outputs to the outputs attribute, defaults to False, defaults to False
-        :type append: bool, optional
+        :param append_outputs: append the chunkwise outputs to the outputs attribute, defaults to False
+        :type append_outputs: bool, optional
         """
         # run integration
         t, *variables = self.integration(self.params)
@@ -275,14 +351,26 @@ class Model:
         if simulate_bold and self.boldInitialized:
             self.simulateBold(t, variables, append=True)
 
-    def integrateChunkwise(self, chunksize, bold=False, append_outputs=False):
+        # force eeg if params['eeg'] == True
+        if self.params.get("eeg"):
+            simulate_eeg = True
+
+        # eeg simulation after integration
+        if simulate_eeg and self.eegInitialized:
+            self.simulateEEG(t, variables, append=True)
+
+    def integrateChunkwise(self, chunksize, bold=False,
+                           eeg=False, append_outputs=False):
         """Repeatedly calls the chunkwise integration for the whole duration of the simulation.
         If `bold==True`, the BOLD model is simulated after each chunk.
+        If `eeg==True`, the EEG model is simulated after each chunk.
 
         :param chunksize: size of each chunk to simulate in units of dt
         :type chunksize: int
         :param bold: simulate BOLD model after each chunk, defaults to False
         :type bold: bool, optional
+        :param eeg: simulate EEG model after each chunk, defaults to False
+        :type eeg: bool, optional
         :param append_outputs: append the chunkwise outputs to the outputs attribute, defaults to False
         :type append_outputs: bool, optional
         """
@@ -297,7 +385,8 @@ class Model:
             remainingChunkSize = int(round((totalDuration - lastT) / dt))
             currentChunkSize = min(chunksize, remainingChunkSize)
 
-            self.autochunk(chunksize=currentChunkSize, append_outputs=append_outputs, bold=bold)
+            self.autochunk(chunksize=currentChunkSize,
+                           append_outputs=append_outputs, bold=bold, eeg=eeg)
             # we save the last simulated time step
             lastT += currentChunkSize * dt
             # or
@@ -310,9 +399,11 @@ class Model:
         """Clears the model's state to create a fresh one"""
         self.state = dotdict({})
         self.outputs = dotdict({})
-        # reinitialize bold model
+        # reinitialize bold and eeg model
         if self.params.get("bold"):
             self.initializeBold()
+        if self.params.get("eeg"):
+            self.initializeEEG()
 
     def storeOutputsAndStates(self, t, variables, append=False):
         """Takes the simulated variables of the integration and stores it to the appropriate model output and state object.
@@ -370,7 +461,8 @@ class Model:
         for i, iv in enumerate(self.input_vars):
             self.params[iv] = inputs[i].copy()
 
-    def autochunk(self, inputs=None, chunksize=1, append_outputs=False, bold=False):
+    def autochunk(self, inputs=None, chunksize=1, append_outputs=False,
+                  bold=False, eeg=False):
         """Executes a single chunk of integration, either for a given duration
         or a single timestep `dt`. Gathers all inputs to the model and resets
         the initial conditions as a preparation for the next chunk.
@@ -391,7 +483,8 @@ class Model:
             self.setInputs(inputs)
 
         # run integration
-        self.integrate(append_outputs=append_outputs, simulate_bold=bold)
+        self.integrate(append_outputs=append_outputs, simulate_bold=bold,
+                       simulate_eeg=eeg)
 
         # set initial conditions to last state for the next chunk
         self.setInitialValuesToLastState()
