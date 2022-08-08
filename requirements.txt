@@ -12,3 +12,5 @@ dill
 sympy
 jitcdde
 dpath
+mne
+nibabel
