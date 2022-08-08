@@ -20,7 +20,7 @@ class EEGModel:
         # self.params_eeg.eeg_scr_pos = params.get("eeg_scr_pos")   # volumetric sources are not allowed
         self.params_eeg.eeg_scr_spacing = params.get("eeg_scr_spacing")
         self.params_eeg.eeg_montage_sfreq = params.get("eeg_montage_sfreq")
-        self.params_eeg.atlas = params.get("eeg_atlas")
+        self.params_eeg.eeg_atlas = params.get("eeg_atlas")
 
         self.forward_solution = None
         self.leadfield = None
