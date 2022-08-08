@@ -8,6 +8,7 @@ from ..models import eeg
 from ..utils.collections import dotdict
 
 
+
 class Model:
     """The Model base class runs models, manages their outputs, parameters and more.
     This class should serve as the base class for all implemented models.
@@ -154,11 +155,9 @@ class Model:
                     self.setOutput("EEG.t_EEG", t_EEG)
                     self.setOutput("EEG.EEG", EEG)
 
-                    # else:
-                    #     logging.warn(f"Will not simulate BOLD if output{bold_input.shape[1] * self.params['dt']} not at least of duration {self.boldModel.samplingRate_NDt * self.params['dt']}")
 
         else:
-            logging.warn("EEG model not initialized, not simulating BOLD. Use `run(eeg=True)`")
+            logging.warn("EEG model not initialized, not simulating EEG. Use `run(eeg=True)`")
 
     def checkChunkwise(self, chunksize):
         """Checks if the model fulfills requirements for chunkwise simulation.
