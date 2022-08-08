@@ -20,7 +20,7 @@ def loadDefaultParams(params_eeg):
         #     params_eeg.eeg_scr_pos = 5.0
     if params_eeg.eeg_scr_spacing is None:  # scr spacing refers to surface sources
         params_eeg.eeg_scr_spacing = "oct6"
-    if params_eeg.egg_montage_sfreq is None:  # sfreq refers to the sample rate of the
+    if params_eeg.eeg_montage_sfreq is None:  # sfreq refers to the sample rate of the
         # data using when creating the info file with the montage
         params_eeg.eeg_montage_sfreq = 256
     if params_eeg.eeg_atlas is None:
