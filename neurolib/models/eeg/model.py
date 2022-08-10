@@ -37,6 +37,7 @@ class EEGModel:
 
         if all(value is None for value in self.params_eeg.values()):
             dp.loadDefaultParams(self.params_eeg)
+            self.subject_dir = os.path.join(os.path.dirname(__file__), "../..", "data", "datasets", "eeg_fsaverage")
             self.get_precomputed_solution()
 
         else:
@@ -49,7 +50,7 @@ class EEGModel:
         self.dt = params.get("dt")  # dt of input activity in ms
 
         self.samplingRate_NDt = int(round(1 / (self.params_eeg.eeg_montage_sfreq * (self.dt / 1000))))
-        print("Sampling rate", self.samplingRate_NDt)
+        #print("Sampling rate", self.samplingRate_NDt)
         self.idxLastT = 0  # Index of the last computed t
         self.EEG = np.array([], dtype="f", ndmin=2)
         self.t_EEG = np.array([], dtype="f", ndmin=1)
@@ -62,7 +63,7 @@ class EEGModel:
                                 "fsaverage_fwd_sol",
                                 "fsaverage_surface_src_fixed_orientation-fwd.fif")
         self.forward_solution = mne.read_forward_solution(fwd_file)
-
+        print("self.subject_dir = ", self.subject_dir)
         default_lf_files = np.load(os.path.join(self.subject_dir, "default_leadfield.npz"))
         self.unique_labels = default_lf_files["unique_labels"]
         self.leadfield = default_lf_files["leadfield_downsampled"]
