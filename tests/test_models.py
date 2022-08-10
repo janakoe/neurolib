@@ -59,6 +59,25 @@ class TestAln(unittest.TestCase):
         end = time.time()
         logging.info("\t > Done in {:.2f} s".format(end - start))
 
+    def test_eeg(self):
+        logging.info("\t > ALN: Testing EEG simulation ...")
+        start = time.time()
+
+        ds = Dataset("gw")
+
+        aln = ALNModel(Cmat=ds.Cmat, Dmat=ds.Dmat)
+
+        aln.params["duration"] = 10 * 1000
+
+        aln.run(chunkwise=True, eeg=True, append_outputs=True)
+
+        # access outputs
+        aln.xr()
+        aln.xr("EEG")
+
+        end = time.time()
+        logging.info("\t > Done in {:.2f} s".format(end - start))
+
 
 class TestHopf(unittest.TestCase):
     """
@@ -93,6 +112,26 @@ class TestHopf(unittest.TestCase):
         end = time.time()
         logging.info("\t > Done in {:.2f} s".format(end - start))
 
+    def test_eeg(self):
+        logging.info("\t > Hopf: Testing EEG simulation ...")
+        start = time.time()
+        ds = Dataset("gw")
+        hopf = HopfModel(Cmat=ds.Cmat, Dmat=ds.Dmat)
+        hopf.params["w"] = 1.0
+        hopf.params["signalV"] = 0
+        hopf.params["duration"] = 10 * 1000
+        hopf.params["sigma_ou"] = 0.14
+        hopf.params["K_gl"] = 0.6
+
+        hopf.run(chunkwise=True, eeg=True, append_outputs=True)
+
+        # access outputs
+        hopf.xr()
+        hopf.xr("EEG")
+
+        end = time.time()
+        logging.info("\t > Done in {:.2f} s".format(end - start))
+
 
 class TestFHN(unittest.TestCase):
     """
@@ -123,6 +162,26 @@ class TestFHN(unittest.TestCase):
         fhn.params["x_ext"] = 0.72
 
         fhn.run(chunkwise=True, bold=True, append_outputs=True)
+        end = time.time()
+        logging.info("\t > Done in {:.2f} s".format(end - start))
+
+    def test_eeg(self):
+        logging.info("\t > FHN: Testing EEG simulation ...")
+        start = time.time()
+        ds = Dataset("gw")
+        fhn = FHNModel(Cmat=ds.Cmat, Dmat=ds.Dmat)
+        fhn.params["signalV"] = 4.0
+        fhn.params["duration"] = 10 * 1000
+        fhn.params["sigma_ou"] = 0.1
+        fhn.params["K_gl"] = 0.6
+        fhn.params["x_ext"] = 0.72
+
+        fhn.run(chunkwise=True, eeg=True, append_outputs=True)
+
+        # access outputs
+        fhn.xr()
+        fhn.xr("EEG")
+
         end = time.time()
         logging.info("\t > Done in {:.2f} s".format(end - start))
 
@@ -161,6 +220,28 @@ class TestWC(unittest.TestCase):
         end = time.time()
         logging.info("\t > Done in {:.2f} s".format(end - start))
 
+    def test_eeg(self):
+        logging.info("\t > WC: EEG simulation ...")
+        start = time.time()
+        ds = Dataset("gw")
+        model = WCModel(Cmat=ds.Cmat, Dmat=ds.Dmat)
+        model.params["signalV"] = 4.0
+        model.params["duration"] = 10 * 1000
+        model.params["sigma_ou"] = 0.1
+        model.params["K_gl"] = 0.6
+
+        # local node input parameter
+        model.params["exc_ext"] = 0.72
+
+        model.run(chunkwise=True, eeg=True, append_outputs=True)
+
+        # access outputs
+        model.xr()
+        model.xr("EEG")
+
+        end = time.time()
+        logging.info("\t > Done in {:.2f} s".format(end - start))
+
 
 class TestWW(unittest.TestCase):
     """
@@ -190,6 +271,25 @@ class TestWW(unittest.TestCase):
         model.params["K_gl"] = 0.6
 
         model.run(chunkwise=True, bold=True, append_outputs=True)
+        end = time.time()
+        logging.info("\t > Done in {:.2f} s".format(end - start))
+
+    def test_eeg(self):
+        logging.info("\t > WW: EEG simulation ...")
+        start = time.time()
+        ds = Dataset("gw")
+        model = WWModel(Cmat=ds.Cmat, Dmat=ds.Dmat)
+        model.params["signalV"] = 4.0
+        model.params["duration"] = 10 * 1000
+        model.params["sigma_ou"] = 0.1
+        model.params["K_gl"] = 0.6
+
+        model.run(chunkwise=True, eeg=True, append_outputs=True)
+
+        # access outputs
+        model.xr()
+        model.xr("EEG")
+
         end = time.time()
         logging.info("\t > Done in {:.2f} s".format(end - start))
 
