@@ -37,7 +37,6 @@ class EEGModel:
 
         if all(value is None for value in self.params_eeg.values()):
             dp.loadDefaultParams(self.params_eeg)
-            self.subject_dir = os.path.join(os.path.dirname(__file__), "../..", "data", "datasets", "eeg_fsaverage")
             self.get_precomputed_solution()
 
         else:
@@ -62,7 +61,8 @@ class EEGModel:
                                 "fsaverage_fwd_sol",
                                 "fsaverage_surface_src_fixed_orientation-fwd.fif")
         self.forward_solution = mne.read_forward_solution(fwd_file)
-        default_lf_files = np.load(os.path.join(self.subject_dir, "default_leadfield.npz"))
+        default_lf_files = np.load(os.path.join(os.path.dirname(__file__), "../..", "data", "datasets", "eeg_fsaverage",
+                                                "default_leadfield.npz"))
         self.unique_labels = default_lf_files["unique_labels"]
         self.leadfield = default_lf_files["leadfield_downsampled"]
 
